@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { createHash } from "blake2";
+import SHA256 from 'crypto-js/sha256';
 
 const API_URL = "http://localhost:8080";
 
@@ -12,16 +12,16 @@ function App() {
     getData();
   }, []);
 
+   // function to hash the data using SHA256
   const hashData = (data: string) => {
-    const hash = createHash('blake2b');
-    hash.update(Buffer.from(data));
-    return hash.digest('hex');
+    return SHA256(data).toString();
   };
 
   const getData = async () => {
     try {
       const response = await fetch(API_URL);
       const { data, version } = await response.json();
+      // update local state with fetched data and version
       setData(data);
       setDataVersion(version);
     } catch (error) {
@@ -35,6 +35,7 @@ function App() {
       if (data === undefined) {
         throw new Error("Data is undefined");
       }
+      // hash the data before sending
       const dataHash = hashData(data);
       const response = await fetch(API_URL, {
         method: "POST",
@@ -46,6 +47,7 @@ function App() {
       });
       const { version } = await response.json();
       setDataVersion(version);
+      // refetch data to ensure local state is in sync with server
       await getData();
     } catch (error) {
       console.error("Failed to update data:", error);
@@ -90,7 +92,9 @@ function App() {
         fontSize: "30px",
       }}
     >
-      <div>Saved Data</div>
+    
+
+<div>Saved Data (Version: {dataVersion})</div>
       <input
         style={{ fontSize: "30px" }}
         type="text"

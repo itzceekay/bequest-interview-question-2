@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { createHash } from 'blake2';
+import SHA256 from 'crypto-js/sha256';
 import fs from 'fs';
 
 const PORT = 8080;
@@ -11,19 +11,19 @@ interface DatabaseEntry {
   version: number;
 }
 
+// default data
 let database: DatabaseEntry = { data: "Hello World", version: 1 };
 let dataHash: string;
 
 app.use(cors());
 app.use(express.json());
 
-// Helper functions
+
 const hashData = (data: string) => {
-  const hash = createHash('blake2b');
-  hash.update(Buffer.from(data));
-  return hash.digest('hex');
+  return SHA256(data).toString();
 };
 
+// helper function to log
 const logAction = (action: string, data: string) => {
   const logEntry = `${new Date().toISOString()} - ${action}: ${data}\n`;
   fs.appendFile('audit.log', logEntry, (err) => {
@@ -65,6 +65,7 @@ app.post("/", (req, res) => {
   database.version++;
   dataHash = serverHash;
   
+  // log the action and create a backup
   logAction('UPDATE', data);
   backupData();
   
@@ -76,10 +77,12 @@ app.post("/verify", (req, res) => {
   res.json({ verified: currentHash === dataHash });
 });
 
-// Backup data periodically
-setInterval(backupData, 1000 * 60 * 60); // Every hour
+// backup data periodically
+setInterval(backupData, 5000); // every 5 sec
 
 // Start server
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
+  // recover data from the latest backup on server start
+  recoverData();
 });
